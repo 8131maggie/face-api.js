@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script src="face-api.min.js"></script>
+</head>
+
+<body>
+  <h3 align=center>face-api.js by <a href="https://github.com/justadudewhohacks/face-api.js">@justadudewhohack</a>
+  </h3>
+  age-gender and expression detection. The <a href="https://github.com/8131maggie/face-api.js">github is here</a><br>
+  <div id="myDiv01">...</div><br>
+
+  <input type=button value=run style="WIDTH: 60px; HEIGHT: 40px" onclick="{
+    run()
+}"><br><br>
+
+  <video onplay="onPlay(this)" id="inputVideo" autoplay muted playsinline width="640" height="480"
+    style=" border: 1px solid #ddd;"></video><br>
+  <canvas id="overlay" width="640" height="480"
+    style="position:relative; top:-487px; border: 1px solid #ddd;"></canvas><br>
+
+</body>
+
+<script>
+
+  async function onPlay() {
+    const videoEl = document.getElementById('inputVideo')
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.3 })
+
+    const startTime = performance.now();
+
+    result = await faceapi.detectAllFaces(videoEl, options).withFaceLandmarks().withFaceExpressions().withAgeAndGender()
+    const canvas = document.getElementById('overlay')
+    const displaySize = { width: canvas.width, height: canvas.height }
+    const resizedResults = faceapi.resizeResults(result, displaySize)
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+
+    if (result) {
+      faceapi.draw.drawDetections(canvas, resizedResults)
+      faceapi.draw.drawFaceLandmarks(canvas, resizedResults)
+
+      const minProbability = 0.05
+      faceapi.draw.drawFaceExpressions(canvas, resizedResults, minProbability)
+
+      resizedResults.forEach(detection => {
+        const box = detection.detection.box
+        const drawBox = new faceapi.draw.DrawBox(box, { label: Math.round(detection.age) + " year old " + detection.gender })
+        drawBox.draw(canvas)
+      })
+    }
+    const endTime = performance.now();
+    document.getElementById('myDiv01').innerHTML = 'takes' + (endTime - startTime).toFixed(1) + 'msec    ' + (1000 / (endTime - startTime)).toFixed(1) + 'FPS' 
+
+    setTimeout(() => onPlay())
+  }
+
+  async function run() {
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri('/face-api.js/models'),
+      faceapi.nets.faceLandmark68Net.loadFromUri('/face-api.js/models'),
+      faceapi.nets.faceExpressionNet.loadFromUri('/face-api.js/models'),
+      faceapi.nets.ageGenderNet.loadFromUri('/face-api.js/models')
+    ]);
+
+    const stream = await navigator.mediaDevices.getUserMedia({ video: {} })
+    const videoEl = document.getElementById('inputVideo')
+    videoEl.srcObject = stream
+  }
+
+</script>
+</body>
+
+</html>
